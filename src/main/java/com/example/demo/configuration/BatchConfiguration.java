@@ -1,5 +1,7 @@
 package com.example.demo.configuration;
 
+import java.util.List;
+
 import org.springframework.batch.core.configuration.annotation.EnableJdbcJobRepository;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -11,12 +13,16 @@ import org.springframework.batch.infrastructure.item.ItemReader;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.infrastructure.item.support.CompositeItemProcessor;
+import org.springframework.batch.infrastructure.item.validator.BeanValidatingItemProcessor;
+import org.springframework.batch.infrastructure.item.validator.ValidationException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
 import com.example.demo.domain.Member;
 import com.example.demo.domain.MemberWithFullName;
+import com.example.demo.listener.ValidationErrorLoggingListener;
 
 @Configuration
 @EnableJdbcJobRepository
@@ -30,11 +36,16 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	public ItemProcessor<Member, MemberWithFullName> itemProcessor() {
-		return item -> {
-			return new MemberWithFullName(item.id(), item.firstName(), item.lastName(),
-					String.format("%s %s", item.firstName(), item.lastName()));
-		};
+	public ItemProcessor<Member, MemberWithFullName> itemProcessor() throws Exception {
+		BeanValidatingItemProcessor<Member> beanValidatingItemProcessor = new BeanValidatingItemProcessor<>();
+		beanValidatingItemProcessor.setFilter(false);
+		beanValidatingItemProcessor.afterPropertiesSet();
+
+		return new CompositeItemProcessor<Member, MemberWithFullName>(
+				List.of(beanValidatingItemProcessor, (ItemProcessor<Member, MemberWithFullName>) item -> {
+					return new MemberWithFullName(item.id(), item.firstName(), item.lastName(),
+							String.format("%s %s", item.firstName(), item.lastName()));
+				}));
 	}
 
 	@Bean
@@ -48,8 +59,8 @@ public class BatchConfiguration {
 	public Step memberStep(JobRepository jobRepository, ItemReader<Member> itemReader,
 			ItemProcessor<Member, MemberWithFullName> itemProcessor, ItemWriter<MemberWithFullName> itemWriter) {
 		return new StepBuilder("memberStep", jobRepository).<Member, MemberWithFullName>chunk(2).reader(itemReader)
-				.processor(itemProcessor)
-				.writer(itemWriter).build();
+				.processor(itemProcessor).listener(new ValidationErrorLoggingListener()).writer(itemWriter)
+				.faultTolerant().retryLimit(1).skip(ValidationException.class).build();
 	}
 
 	@Bean
