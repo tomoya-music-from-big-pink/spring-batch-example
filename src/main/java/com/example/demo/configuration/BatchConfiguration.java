@@ -5,6 +5,7 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.ItemReader;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
 import com.example.demo.domain.Member;
+import com.example.demo.domain.MemberWithFullName;
 
 @Configuration
 public class BatchConfiguration {
@@ -26,15 +28,25 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	public ItemWriter<Member> itemWriter() {
-		return (chunk) -> {
+	public ItemProcessor<Member, MemberWithFullName> itemProcessor() {
+		return item -> {
+			return new MemberWithFullName(item.id(), item.firstName(), item.lastName(),
+					String.format("%s %s", item.firstName(), item.lastName()));
+		};
+	}
+
+	@Bean
+	public ItemWriter<MemberWithFullName> itemWriter() {
+		return chunk -> {
 			chunk.forEach(System.out::println);
 		};
 	}
 
 	@Bean
-	public Step memberStep(JobRepository jobRepository, ItemReader<Member> itemReader, ItemWriter<Member> itemWriter) {
-		return new StepBuilder("memberStep", jobRepository).<Member, Member>chunk(2).reader(itemReader)
+	public Step memberStep(JobRepository jobRepository, ItemReader<Member> itemReader,
+			ItemProcessor<Member, MemberWithFullName> itemProcessor, ItemWriter<MemberWithFullName> itemWriter) {
+		return new StepBuilder("memberStep", jobRepository).<Member, MemberWithFullName>chunk(2).reader(itemReader)
+				.processor(itemProcessor)
 				.writer(itemWriter).build();
 	}
 
