@@ -1,5 +1,6 @@
 package com.example.demo.configuration;
 
+import org.springframework.batch.core.configuration.annotation.EnableJdbcJobRepository;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
@@ -18,6 +19,7 @@ import com.example.demo.domain.Member;
 import com.example.demo.domain.MemberWithFullName;
 
 @Configuration
+@EnableJdbcJobRepository
 public class BatchConfiguration {
 
 	@Bean
