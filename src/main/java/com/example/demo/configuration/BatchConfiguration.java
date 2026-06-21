@@ -21,9 +21,15 @@ import org.springframework.batch.infrastructure.item.file.builder.FlatFileItemRe
 import org.springframework.batch.infrastructure.item.support.CompositeItemProcessor;
 import org.springframework.batch.infrastructure.item.validator.BeanValidatingItemProcessor;
 import org.springframework.batch.infrastructure.item.validator.ValidationException;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import com.example.demo.domain.Member;
 import com.example.demo.domain.MemberWithFullName;
@@ -33,6 +39,31 @@ import com.example.demo.listener.ValidationErrorLoggingListener;
 @Configuration
 @EnableJdbcJobRepository
 public class BatchConfiguration {
+
+	@Bean("dataSource")
+	@Primary
+	@ConfigurationProperties(prefix = "spring.datasource")
+	public DataSource dataSource() {
+		return DataSourceBuilder.create().build();
+	}
+
+	@Bean("transactionManager")
+	@Primary
+	public PlatformTransactionManager transactionManager(@Qualifier("dataSource") DataSource dataSource) {
+		return new DataSourceTransactionManager(dataSource);
+	}
+
+	@Bean("businessDataSource")
+	@ConfigurationProperties(prefix = "spring.business.datasource")
+	public DataSource businessDataSource() {
+		return DataSourceBuilder.create().build();
+	}
+
+	@Bean("businessTransactionManaber")
+	public PlatformTransactionManager businessTransactionManager(
+			@Qualifier("businessDataSource") DataSource businessDataSource) {
+		return new DataSourceTransactionManager(businessDataSource);
+	}
 
 	@Bean
 	public FlatFileItemReader<Member> itemReader() {
@@ -49,14 +80,14 @@ public class BatchConfiguration {
 
 		return new CompositeItemProcessor<Member, MemberWithFullName>(
 				List.of(beanValidatingItemProcessor, (ItemProcessor<Member, MemberWithFullName>) item -> {
-					return new MemberWithFullName(item.id(), item.firstName(), item.lastName(),
+					return new MemberWithFullName(Integer.parseInt(item.id()), item.firstName(), item.lastName(),
 							String.format("%s %s", item.firstName(), item.lastName()));
 				}));
 	}
 
 	@Bean
-	public ItemWriter<MemberWithFullName> itemWriter(DataSource dataSource) {
-		return new JdbcBatchItemWriterBuilder<MemberWithFullName>().dataSource(dataSource).sql(
+	public ItemWriter<MemberWithFullName> itemWriter(@Qualifier("businessDataSource") DataSource businessDataSource) {
+		return new JdbcBatchItemWriterBuilder<MemberWithFullName>().dataSource(businessDataSource).sql(
 				"INSERT INTO member (id, first_name, last_name, full_name) VALUES (:id, :firstName, :lastName, :fullName)")
 				.beanMapped().build();
 	}
@@ -67,8 +98,8 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	public StepExecutionListener stepExecutionListener(DataSource dataSource) {
-		return new RegisteredRecordLoggingListener(dataSource);
+	public StepExecutionListener stepExecutionListener(@Qualifier("businessDataSource") DataSource businessDataSource) {
+		return new RegisteredRecordLoggingListener(businessDataSource);
 	}
 
 	@Bean

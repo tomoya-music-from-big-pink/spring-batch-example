@@ -29,7 +29,7 @@ public class RegisteredRecordLoggingListener implements StepExecutionListener {
 	public @Nullable ExitStatus afterStep(StepExecution stepExecution) {
 		String sql = "SELECT id, first_name, last_name, full_name FROM member ORDER BY id";
 		List<MemberWithFullName> resultList = this.jdbcOperations.query(sql, (rs, rowNum) -> {
-			return new MemberWithFullName(rs.getString("id"), rs.getString("first_name"), rs.getString("last_name"),
+			return new MemberWithFullName(rs.getInt("id"), rs.getString("first_name"), rs.getString("last_name"),
 					rs.getString("full_name"));
 		});
 

@@ -1,4 +1,4 @@
 package com.example.demo.domain;
 
-public record MemberWithFullName(String id, String firstName, String lastName, String fullName) {
+public record MemberWithFullName(Integer id, String firstName, String lastName, String fullName) {
 }
