@@ -33,7 +33,7 @@ public class DataSourceConfiguration {
 		return DataSourceBuilder.create().build();
 	}
 
-	@Bean("businessTransactionManaber")
+	@Bean("businessTransactionManager")
 	public PlatformTransactionManager businessTransactionManager(
 			@Qualifier("businessDataSource") DataSource businessDataSource) {
 		return new DataSourceTransactionManager(businessDataSource);
