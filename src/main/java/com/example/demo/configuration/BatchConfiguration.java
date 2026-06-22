@@ -15,7 +15,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.ItemReader;
 import org.springframework.batch.infrastructure.item.ItemWriter;
-import org.springframework.batch.infrastructure.item.database.builder.JdbcBatchItemWriterBuilder;
+import org.springframework.batch.infrastructure.item.database.builder.JpaItemWriterBuilder;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.infrastructure.item.support.CompositeItemProcessor;
@@ -32,6 +32,8 @@ import com.example.demo.domain.Member;
 import com.example.demo.domain.MemberWithFullName;
 import com.example.demo.listener.RegisteredRecordLoggingListener;
 import com.example.demo.listener.ValidationErrorLoggingListener;
+
+import jakarta.persistence.EntityManagerFactory;
 
 @Configuration
 @EnableJdbcJobRepository
@@ -59,10 +61,9 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	public ItemWriter<MemberWithFullName> itemWriter(@Qualifier("businessDataSource") DataSource businessDataSource) {
-		return new JdbcBatchItemWriterBuilder<MemberWithFullName>().dataSource(businessDataSource).sql(
-				"INSERT INTO member (id, first_name, last_name, full_name) VALUES (:id, :firstName, :lastName, :fullName)")
-				.beanMapped().build();
+	public ItemWriter<MemberWithFullName> itemWriter(EntityManagerFactory entityManagerFactory) {
+		return new JpaItemWriterBuilder<MemberWithFullName>().entityManagerFactory(entityManagerFactory)
+				.usePersist(true).build();
 	}
 
 	@Bean
