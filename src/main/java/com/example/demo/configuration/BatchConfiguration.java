@@ -5,6 +5,7 @@ import java.util.List;
 import javax.sql.DataSource;
 
 import org.springframework.batch.core.configuration.annotation.EnableJdbcJobRepository;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.listener.CompositeStepExecutionListener;
@@ -24,12 +25,14 @@ import org.springframework.batch.infrastructure.item.support.CompositeItemProces
 import org.springframework.batch.infrastructure.item.validator.BeanValidatingItemProcessor;
 import org.springframework.batch.infrastructure.item.validator.ValidationException;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import com.example.demo.datasource.MemberRoutingDataSource;
 import com.example.demo.domain.Member;
 import com.example.demo.domain.MemberWithFullName;
 import com.example.demo.listener.RegisteredRecordLoggingListener;
@@ -50,13 +53,14 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	public FlatFileItemReader<Member> itemReader() {
-		return new FlatFileItemReaderBuilder<Member>().name("memberReader")
-				.resource(new ClassPathResource("bon_jovi.csv")).delimited().names("id", "firstName", "lastName")
-				.targetType(Member.class).linesToSkip(1).build();
+	@StepScope
+	public FlatFileItemReader<Member> itemReader(@Value("#{stepExecutionContext['fileName']}") String fileName) {
+		return new FlatFileItemReaderBuilder<Member>().name("memberReader").resource(new ClassPathResource(fileName))
+				.delimited().names("id", "firstName", "lastName").targetType(Member.class).linesToSkip(1).build();
 	}
 
 	@Bean
+	@StepScope
 	public ItemProcessor<Member, MemberWithFullName> itemProcessor() throws Exception {
 		BeanValidatingItemProcessor<Member> beanValidatingItemProcessor = new BeanValidatingItemProcessor<>();
 		beanValidatingItemProcessor.setFilter(false);
@@ -70,6 +74,7 @@ public class BatchConfiguration {
 	}
 
 	@Bean
+	@StepScope
 	public ItemWriter<MemberWithFullName> itemWriter(EntityManagerFactory entityManagerFactory) {
 		return new JpaItemWriterBuilder<MemberWithFullName>().entityManagerFactory(entityManagerFactory)
 				.usePersist(true).build();
@@ -81,9 +86,10 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	public StepExecutionListener stepExecutionListener(@Qualifier("businessDataSource") DataSource businessDataSource) {
-		StepExecutionListener[] listeners = new StepExecutionListener[] { new WorkerStepExecutionListener(),
-				new RegisteredRecordLoggingListener(businessDataSource) };
+	public StepExecutionListener stepExecutionListener(MemberRoutingDataSource memberRoutingDataSource) {
+		StepExecutionListener[] listeners = new StepExecutionListener[] {
+				new WorkerStepExecutionListener(memberRoutingDataSource),
+				new RegisteredRecordLoggingListener(memberRoutingDataSource) };
 		CompositeStepExecutionListener stepExecutionListener = new CompositeStepExecutionListener();
 		stepExecutionListener.setListeners(listeners);
 

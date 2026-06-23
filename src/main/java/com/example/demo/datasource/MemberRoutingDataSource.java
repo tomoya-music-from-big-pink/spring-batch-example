@@ -6,6 +6,7 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
 public class MemberRoutingDataSource extends AbstractRoutingDataSource {
@@ -14,13 +15,25 @@ public class MemberRoutingDataSource extends AbstractRoutingDataSource {
 
 	private final Map<String, DataSource> dataSourceMap = new HashMap<>();
 
-	public void addDataSource(String key, String connectionString) {
+	public void addDataSource(String dbname, String host, String username, String password) {
+		dataSourceMap.put(dbname,
+				DataSourceBuilder.create().url(String.format("jdbc:postgresql://%s:5432/%s", host, dbname))
+						.username(username).password(password).driverClassName("org.postgresql.Driver").build());
+	}
 
+	@Override
+	public void initialize() {
+		// no op
 	}
 
 	@Override
 	protected @Nullable Object determineCurrentLookupKey() {
 		return dataSourceKey.get();
+	}
+
+	@Override
+	public DataSource determineTargetDataSource() {
+		return this.dataSourceMap.get(determineCurrentLookupKey());
 	}
 
 	public static void setDataSourceKey(String key) {

@@ -4,7 +4,7 @@ CREATE TABLE reservations (
 	credential_key VARCHAR(10) NOT NULL
 );
 
-INSERT INTO reservations VALUES(1, 'bon_jov.csv', 'test01');
+INSERT INTO reservations VALUES(1, 'bon_jovi.csv', 'test01');
 INSERT INTO reservations VALUES(2, 'metallica.csv', 'test02');
 INSERT INTO reservations VALUES(3, 'iron_maiden.csv', 'test03');
 

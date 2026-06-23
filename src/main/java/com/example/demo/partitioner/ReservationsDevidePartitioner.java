@@ -32,8 +32,8 @@ public class ReservationsDevidePartitioner implements Partitioner {
 		Map<String, ExecutionContext> map = new HashMap<>();
 		for (int i = 0; i < reservationList.size(); i++) {
 			ExecutionContext executionContext = new ExecutionContext();
-			executionContext.put("file_name", reservationList.get(i).fileName());
-			executionContext.put("db_name", reservationList.get(i).dbname());
+			executionContext.put("fileName", reservationList.get(i).fileName());
+			executionContext.put("dbname", reservationList.get(i).dbname());
 			executionContext.put("host", reservationList.get(i).host());
 			executionContext.put("username", reservationList.get(i).username());
 			executionContext.put("password", reservationList.get(i).password());

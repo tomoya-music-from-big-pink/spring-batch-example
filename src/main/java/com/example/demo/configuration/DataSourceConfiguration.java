@@ -1,7 +1,10 @@
 package com.example.demo.configuration;
 
+import java.util.Properties;
+
 import javax.sql.DataSource;
 
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -14,7 +17,7 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import jakarta.persistence.EntityManagerFactory;
+import com.example.demo.datasource.MemberRoutingDataSource;
 
 @Configuration
 public class DataSourceConfiguration {
@@ -32,26 +35,35 @@ public class DataSourceConfiguration {
 		return new DataSourceTransactionManager(dataSource);
 	}
 
+	@Bean
+	public MemberRoutingDataSource memberRoutingDataSource() {
+		return new MemberRoutingDataSource();
+	}
+
 	@Bean("businessDataSource")
-	@ConfigurationProperties(prefix = "spring.business.datasource")
+	@StepScope
 	public DataSource businessDataSource() {
-		return DataSourceBuilder.create().build();
+		return memberRoutingDataSource().determineTargetDataSource();
 	}
 
 	@Bean("entityManagerFactory")
-	public LocalContainerEntityManagerFactoryBean entityManagerFactory(
-			@Qualifier("businessDataSource") DataSource businessDataSource) {
+	// @StepScope
+	public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
 		LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-		emf.setDataSource(businessDataSource);
+		emf.setDataSource(businessDataSource());
 		emf.setPackagesToScan("com.example.demo.domain");
 		emf.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
+		Properties jpaProperties = new Properties();
+		jpaProperties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
+		emf.setJpaProperties(jpaProperties);
+
 		return emf;
 	}
 
 	@Bean("businessTransactionManager")
-	public PlatformTransactionManager businessTransactionManager(
-			@Qualifier("entityManagerFactory") EntityManagerFactory entityManagerFactory) {
-		return new JpaTransactionManager(entityManagerFactory);
+	// @StepScope
+	public PlatformTransactionManager businessTransactionManager() {
+		return new JpaTransactionManager(entityManagerFactory().getObject());
 	}
 
 }
