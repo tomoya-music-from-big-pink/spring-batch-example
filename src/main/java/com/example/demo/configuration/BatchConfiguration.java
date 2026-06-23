@@ -30,6 +30,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import com.example.demo.datasource.MemberRoutingDataSource;
@@ -96,11 +98,16 @@ public class BatchConfiguration {
 		return stepExecutionListener;
 	}
 
+	@Bean
+	public TaskExecutor taskExecutor() {
+		return new VirtualThreadTaskExecutor();
+	}
+
 	@Bean("leaderStep")
-	public Step leaderStep(JobRepository jobRepository, Partitioner partitioner,
+	public Step leaderStep(JobRepository jobRepository, Partitioner partitioner, TaskExecutor taskExecutor,
 			@Qualifier("workerStep") Step workerStep) {
-		return new StepBuilder("leaderStep", jobRepository).partitioner("workerStep", partitioner).step(workerStep)
-				.build();
+		return new StepBuilder("leaderStep", jobRepository).partitioner("workerStep", partitioner)
+				.taskExecutor(taskExecutor).step(workerStep).build();
 	}
 
 	@Bean("workerStep")
@@ -109,7 +116,7 @@ public class BatchConfiguration {
 			ItemReader<Member> itemReader, ItemProcessor<Member, MemberWithFullName> itemProcessor,
 			ItemProcessListener<Member, MemberWithFullName> itemProcessListener,
 			ItemWriter<MemberWithFullName> itemWriter, StepExecutionListener stepExecutionListener) {
-		return new StepBuilder("workerStep", jobRepository).<Member, MemberWithFullName>chunk(2)
+		return new StepBuilder("workerStep", jobRepository).<Member, MemberWithFullName>chunk(10)
 				.transactionManager(businessTransactionManager).reader(itemReader).processor(itemProcessor)
 				.listener(itemProcessListener).writer(itemWriter).listener(stepExecutionListener).faultTolerant()
 				.retryLimit(1).skip(ValidationException.class).build();

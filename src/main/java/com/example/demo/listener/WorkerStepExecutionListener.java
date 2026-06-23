@@ -1,5 +1,7 @@
 package com.example.demo.listener;
 
+import org.jspecify.annotations.Nullable;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.listener.StepExecutionListener;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.infrastructure.item.ExecutionContext;
@@ -26,6 +28,13 @@ public class WorkerStepExecutionListener implements StepExecutionListener {
 		this.memberRoutingDataSource.addDataSource(dbname, host, username, password);
 
 		MemberRoutingDataSource.setDataSourceKey(dbname);
+	}
+
+	@Override
+	public @Nullable ExitStatus afterStep(StepExecution stepExecution) {
+		MemberRoutingDataSource.removeDataSourceKey();
+
+		return ExitStatus.COMPLETED;
 	}
 
 }

@@ -4,7 +4,6 @@ import java.util.Properties;
 
 import javax.sql.DataSource;
 
-import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -40,30 +39,25 @@ public class DataSourceConfiguration {
 		return new MemberRoutingDataSource();
 	}
 
-	@Bean("businessDataSource")
-	@StepScope
-	public DataSource businessDataSource() {
-		return memberRoutingDataSource().determineTargetDataSource();
-	}
-
 	@Bean("entityManagerFactory")
-	// @StepScope
-	public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+	public LocalContainerEntityManagerFactoryBean entityManagerFactory(
+			MemberRoutingDataSource memberRoutingDataSource) {
 		LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-		emf.setDataSource(businessDataSource());
+		emf.setDataSource(memberRoutingDataSource);
 		emf.setPackagesToScan("com.example.demo.domain");
 		emf.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
 		Properties jpaProperties = new Properties();
 		jpaProperties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
+		jpaProperties.put("hibernate.boot.allow_jdbc_metadata_access", "false");
 		emf.setJpaProperties(jpaProperties);
 
 		return emf;
 	}
 
 	@Bean("businessTransactionManager")
-	// @StepScope
-	public PlatformTransactionManager businessTransactionManager() {
-		return new JpaTransactionManager(entityManagerFactory().getObject());
+	public PlatformTransactionManager businessTransactionManager(
+			LocalContainerEntityManagerFactoryBean entityManagerFactory) {
+		return new JpaTransactionManager(entityManagerFactory.getObject());
 	}
 
 }
